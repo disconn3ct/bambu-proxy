@@ -1,0 +1,163 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &name mosquitto-printer
+  namespace: homeautomation
+spec:
+  chart:
+    spec:
+      chart: mosquitto
+      version: 2.4.1
+      sourceRef:
+        kind: HelmRepository
+        name: t3n # https://storage.googleapis.com/t3n-helm-charts
+  valuesFrom:
+    - kind: Secret
+      name: mosquitto-printer-users
+      valuesKey: USERS
+      targetPath: authentication.passwordEntries
+      ## use mosquitto_passwd to generate it. The result looks like an htpasswd file. (`username:$wdaeflkjasdfljsdaflkdfs`)
+      ## The following users must exist:
+      ## bblp: Password is the printer access code
+      ## exporter: Random password, used by the Prometheus metrics exporter
+      
+      ## Optional users:
+      ## mosquitto: If you want to bridge the printer-relay to the main broker. Random password.
+      ## admin: For tools like MQTTX on the relay. Random password.
+
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              version: v1
+              kind: Deployment
+              name: *name
+            # Fix exporter config for auth
+            # Use mqtt instead of websocket for health. No idea why websocket failed. Don't care.
+            patch: |-
+              - op: add
+                path: /spec/template/spec/containers/0/env
+                value:
+                  - name: BROKER_ENDPOINT
+                    value: "tcp://127.0.0.1:1883"
+                  - name: MQTT_USER
+                    value: exporter
+                  - name: MQTT_PASS
+                    valueFrom:
+                      secretKeyRef:
+                        name: mosquitto-exporter
+                        key: password
+              - op: replace
+                path: /spec/template/spec/containers/1/livenessProbe/tcpSocket/port
+                value: mqtt
+              - op: replace
+                path: /spec/template/spec/containers/1/readinessProbe/tcpSocket/port
+                value: mqtt
+  values:
+    image:
+      repository: eclipse-mosquitto
+      tag: 2.0.20
+    imagePullSecrets:
+      - name: image-pull-secret
+    service:
+      type: LoadBalancer
+      externalTrafficPolicy: Cluster
+
+    ports:
+      mqtt:
+        port: 1883
+        protocol: TCP
+      websocket:
+        port: 9090
+        protocol: TCP
+      mqttssl:
+        port: 8883
+        protocol: TCP
+    persistence:
+      enabled: false
+    authorization:
+      acls: |-
+        # applies to everyone
+        pattern readwrite #
+
+        #
+        user exporter
+        topic #
+        topic $SYS/#
+
+        #
+        user admin
+        topic #
+        topic $SYS/#
+
+        #
+        user bblp
+        topic read device/+/report
+        topic readwrite device/+/request
+
+        #
+        user mosquitto
+        topic read device/+/report
+        topic readwrite device/+/request
+        topic read $SYS/broker/connection/printer/state
+
+    config: |-
+      persistence false
+      log_dest stdout
+
+      listener 1883
+
+      listener 8883
+      cafile /mosquitto/ssl/tls.crt
+      certfile /mosquitto/ssl/tls.crt
+      keyfile /mosquitto/ssl/tls.key
+
+      listener 9090
+      protocol websockets
+      #log_type all
+      log_type error
+      log_type warning
+      log_type notice
+      log_type information
+      # log_type subscribe
+      # log_type unsubscribe
+      sys_interval 10
+      #
+      include_dir /mosquitto/conf.d/
+      #
+    ## Additional volumes.
+    extraVolumes:
+      - name: printer-ca
+        configMap:
+          name: printer-ca
+      - name: tls
+        secret:
+          secretName: mosquitto-printer-ssl
+      # Printer config:
+      - name: printer
+        secret:
+          secretName: mosquitto-printer
+          items:
+            - key: printer.conf
+              path: printer.conf
+    ## Additional volumeMounts to the main container.
+    extraVolumeMounts:
+      - name: tls
+        mountPath: /mosquitto/ssl
+      - name: printer
+        mountPath: /mosquitto/conf.d/
+        readOnly: true
+      - name: printer-ca
+        mountPath: /mosquitto/printer
+        readOnly: true
+
+    monitoring:
+      podMonitor:
+        enabled: true
+      sidecar:
+        enabled: true
+        port: 9234
+        image:
+          repository: jryberg/mosquitto-exporter
+          tag: v0.7.4@sha256:09a5cc8518b61f5b83bc93f6e51ff5c0a331ffc258293f28384b26969f99c82a
