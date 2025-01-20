@@ -58,8 +58,6 @@ spec:
     image:
       repository: eclipse-mosquitto
       tag: 2.0.20
-    imagePullSecrets:
-      - name: image-pull-secret
     service:
       type: LoadBalancer
       externalTrafficPolicy: Cluster
