@@ -1,0 +1,28 @@
+---
+# This is used by the `helm/` example
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - helm/mosquitto-relay.yaml
+  # Optional for SSL:
+  # - helm/relay-cert.yaml
+
+secretGenerator:
+  - name: relay-config
+    files:
+      ## Copy these files from examples to this directory and edit as needed:
+      - configs/acls.conf
+      - configs/mosquitto.conf
+      ## Create the user file from scratch with:
+      # docker run --rm -ti eclipse-mosquitto:2 -- ash -c 'mosquitto_passwd -b -c foo bblp 12345678 && cat foo' | tee users
+      # Replace '12345678' with your printer access code
+      - configs/users
+configMapGenerator:
+  - name: printer-ca
+    files:
+      ## Fetch the printer's certificate with:
+      # openssl s_client -connect 1.2.3.4:8883 2>/dev/null </dev/null |  sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | tee blcert.pem
+      - configs/blcert.pem
+
+configurations:
+  - helm/kustomizeconfig.yaml

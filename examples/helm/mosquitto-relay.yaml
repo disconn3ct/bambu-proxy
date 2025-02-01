@@ -1,0 +1,111 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: &name mosquitto-printer
+spec:
+  chart:
+    spec:
+      chart: mosquitto
+      version: 2.4.1
+      sourceRef:
+        kind: HelmRepository
+        name: t3n # https://storage.googleapis.com/t3n-helm-charts
+  valuesFrom:
+    - kind: Secret
+      name: relay-config
+      valuesKey: users
+      targetPath: authentication.passwordEntries
+    - kind: Secret
+      name: relay-config
+      valuesKey: acls.txt
+      targetPath: authorization.acls
+    - kind: Secret
+      name: relay-config
+      valuesKey: mosquitto.conf
+      targetPath: config
+
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              version: v1
+              kind: Deployment
+              name: *name
+            ## Uncomment the first patch if you want to use the exporter. (Don't forget to comment the duplicate `patch` line below)
+            # patch: |-
+            #   - op: add
+            #     path: /spec/template/spec/containers/0/env
+            #     value:
+            #       - name: BROKER_ENDPOINT
+            #         value: "tcp://127.0.0.1:1883"
+            #       - name: MQTT_USER
+            #         value: exporter
+            #       - name: MQTT_PASS
+            #         value: SECRET_PASSWORD
+
+            # Change the health check to MQTT instead of websocket, which failed for reasons
+            patch: |-
+              - op: replace
+                path: /spec/template/spec/containers/1/livenessProbe/tcpSocket/port
+                value: mqtt
+              - op: replace
+                path: /spec/template/spec/containers/1/readinessProbe/tcpSocket/port
+                value: mqtt
+  values:
+    image:
+      repository: eclipse-mosquitto
+      tag: 2.0.20 ## Version of mosquitto to use
+    service:
+      type: LoadBalancer
+      externalTrafficPolicy: Cluster
+
+    ports:
+      mqtt:
+        port: 1883
+        protocol: TCP
+      websocket:
+        port: 9090
+        protocol: TCP
+      ## Uncomment for SSL:
+      # mqttssl:
+      #   port: 8883
+      #   protocol: TCP
+
+    # This proxy explicitly forgets
+    persistence:
+      enabled: false
+
+    # Handled by `valuesFrom`
+    # authorization:
+    #   acls:
+    # config:
+
+    ## Additional volumes.
+    extraVolumes:
+      # This contains the printer's SSL certificate
+      - name: printer-ca
+        configMap:
+          name: printer-ca
+      ## Uncomment for SSL
+      # - name: tls
+      #   secret:
+      #     secretName: mosquitto-printer-ssl
+
+    extraVolumeMounts:
+      - name: printer-ca
+        mountPath: /mosquitto/printer
+        readOnly: true
+      ## Uncomment for SSL
+      # - name: tls
+      #   mountPath: /mosquitto/ssl
+
+    monitoring:
+      podMonitor:
+        enabled: &mon false ## Set true to create a podmonitor
+      sidecar:
+        enabled: *mon
+        port: 9234
+        image:
+          repository: jryberg/mosquitto-exporter
+          tag: v0.7.4
