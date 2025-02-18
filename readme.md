@@ -35,10 +35,11 @@ Everything that uses only MQTT should be fine. This configuration relays the req
   - There is some dependency on ftp in there that messes with it. Might be an Octoprint architectural problem.
   - Lots of errors in the logs about the chamber images.
   - When it misbehaves, I point it straight to the printer and it works as well as it ever does. (Not great, but that is not the author's fault.) Since the relay only uses one connection, and the slicer uses one, there is usually one available for Octoprint.
-- [Home Assistant](https://github.com/greghesp/ha-bambulab) via HACS.
+- [Home Assistant](https://github.com/greghesp/ha-bambulab) v2.1.4 or later, via HACS.
   - Seems to be fine, even combined with the NR flows.
   - Had to rename a some devices to prevent conflicts.
   - Shows much more accurate information than Octoprint, such as ETA and current layer.
+  - You must disable SSL verification on the HA extension advanced settings.
 
 ## Getting Started
 
@@ -49,3 +50,4 @@ Check `examples/configs` for the raw configs. Toss the printer's certificate int
 You probably want docker compose. Edit or create the files under `examples/config` and `examples/docker/docker-compose.yaml`. Review everything flagged with `##`.
 
 Once the configuration is ready, start it with `docker compose up --remove-orphans`.
+
