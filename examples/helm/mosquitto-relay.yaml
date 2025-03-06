@@ -55,7 +55,7 @@ spec:
   values:
     image:
       repository: eclipse-mosquitto
-      tag: 2.0.20 ## Version of mosquitto to use
+      tag: 2.0.21 ## Version of mosquitto to use
     service:
       type: LoadBalancer
       externalTrafficPolicy: Cluster
