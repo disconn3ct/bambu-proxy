@@ -1,6 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "ignorePaths": [".github/workflows/**"],
+  "ignorePaths": [
+    ".github/workflows/**"
+  ],
   "extends": [
     "config:best-practices",
     ":automergeDisabled",
@@ -13,23 +15,36 @@
     "workarounds:all"
   ],
   "flux": {
-    "fileMatch": ["\\.ya?ml$"]
+    "managerFilePatterns": [
+      "/\\.ya?ml$/"
+    ]
   },
   "helm-values": {
-    "fileMatch": ["\\.ya?ml$"],
+    "managerFilePatterns": [
+      "/\\.ya?ml$/"
+    ],
     "pinDigests": false
   },
   "kubernetes": {
-    "fileMatch": ["\\.ya?ml$"],
+    "managerFilePatterns": [
+      "/\\.ya?ml$/"
+    ],
     "pinDigests": false
   },
   "packageRules": [
     {
-      "matchDatasources": ["docker"],
+      "matchDatasources": [
+        "docker"
+      ],
       "pinDigests": false
     },
     {
-      "matchManagers": ["argocd", "devcontainer", "helmv3", "pyenv"],
+      "matchManagers": [
+        "argocd",
+        "devcontainer",
+        "helmv3",
+        "pyenv"
+      ],
       "pinDigests": false
     }
   ]
