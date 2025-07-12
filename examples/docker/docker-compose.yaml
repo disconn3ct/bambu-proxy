@@ -1,6 +1,6 @@
 services:
   mosquitto:
-    image: eclipse-mosquitto:2.0.21 ## Version of mosquitto to use
+    image: eclipse-mosquitto:2.0.22 ## Version of mosquitto to use
     restart: unless-stopped
     ports:
       - "1883:1883"
