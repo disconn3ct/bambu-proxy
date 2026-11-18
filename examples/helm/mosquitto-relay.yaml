@@ -108,4 +108,4 @@ spec:
         port: 9234
         image:
           repository: jryberg/mosquitto-exporter
-          tag: v0.8.1
+          tag: v0.8.2
